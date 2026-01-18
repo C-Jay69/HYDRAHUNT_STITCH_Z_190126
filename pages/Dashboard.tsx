@@ -436,6 +436,7 @@ const Dashboard: React.FC = () => {
            </div>
         </div>
       ) : null}
+      </main>
     </div>
   );
 };

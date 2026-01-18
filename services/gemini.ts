@@ -276,7 +276,8 @@ export const parseResumeFromText = async (text: string): Promise<Partial<ResumeD
   const ai = getAiClient();
   if (!ai) {
     console.error("API Key missing");
-    return null;
+    const basic = basicParse(text);
+    return basic;
   }
 
   // 1. Sanitize text: remove non-printable control characters that break XHR/JSON
@@ -325,9 +326,33 @@ export const parseResumeFromText = async (text: string): Promise<Partial<ResumeD
       await new Promise(resolve => setTimeout(resolve, 2000 * Math.pow(2, attempt - 1))); 
     }
   }
-  return null;
+  return basicParse(cleanText);
 };
 
+const basicParse = (text: string): Partial<ResumeData> => {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  const firstLine = t.split(".")[0] || "";
+  const emailMatch = t.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+  const phoneMatch = t.match(/(\+?\d[\d\-\s().]{7,}\d)/);
+  const skills: { name: string; level: number; id: string }[] = [];
+  const common = ["JavaScript","TypeScript","React","Node","Python","AWS","Docker","Kubernetes","SQL","NoSQL"];
+  common.forEach((s) => {
+    if (new RegExp(`\\b${s}\\b`, "i").test(t)) {
+      skills.push({ name: s, level: 3, id: crypto.randomUUID() });
+    }
+  });
+  return {
+    fullName: firstLine.slice(0, 80),
+    email: emailMatch ? emailMatch[0] : "",
+    phone: phoneMatch ? phoneMatch[0] : "",
+    summary: t.slice(0, 1500),
+    location: "",
+    website: "",
+    experience: [],
+    education: [],
+    skills
+  };
+};
 // ATS Analysis Interface
 export interface ATSAnalysis {
   score: number;
