@@ -1,25 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
-import { View } from '@/types/hydranhunt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Chrome, Zap, ArrowRight } from 'lucide-react';
+import { Chrome, Zap, ArrowRight, AlertCircle } from 'lucide-react';
 
-interface LoginProps {
-  setCurrentView: (view: View) => void;
-}
-
-export default function Login({ setCurrentView }: LoginProps) {
+export default function Login() {
   const { t, language, setLanguage } = useLanguage();
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const languages: { code: Language; name: string; flag: string }[] = [
     { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -31,24 +29,74 @@ export default function Login({ setCurrentView }: LoginProps) {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // Simulate authentication
-    setTimeout(() => {
+    try {
+      if (!isLogin) {
+        // Signup flow
+        if (password !== confirmPassword) {
+          setError('Passwords do not match');
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || 'Signup failed');
+          setIsLoading(false);
+          return;
+        }
+
+        // Auto-login after signup
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          setError('Account created, please login');
+          setIsLogin(true);
+        } else {
+          router.push('/');
+          router.refresh();
+        }
+      } else {
+        // Login flow
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          setError('Invalid email or password');
+        } else {
+          router.push('/');
+          router.refresh();
+        }
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
-      setCurrentView('dashboard');
-    }, 1500);
+    }
   };
 
   const handleGoogleAuth = () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setCurrentView('dashboard');
-    }, 1500);
+    signIn('google', { callbackUrl: '/' });
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-black p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#0000FF] rounded-full blur-[120px]"></div>
@@ -86,6 +134,13 @@ export default function Login({ setCurrentView }: LoginProps) {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
             <div>
@@ -108,6 +163,7 @@ export default function Login({ setCurrentView }: LoginProps) {
               onChange={(e) => setEmail(e.target.value)}
               className="bg-[#000] border-[#222] text-white focus:border-[#00FFFF]"
               placeholder="hunter@hydrahunt.com"
+              required
             />
           </div>
 
@@ -119,6 +175,7 @@ export default function Login({ setCurrentView }: LoginProps) {
               onChange={(e) => setPassword(e.target.value)}
               className="bg-[#000] border-[#222] text-white focus:border-[#00FFFF]"
               placeholder="•••••••••"
+              required
             />
           </div>
 
@@ -131,6 +188,7 @@ export default function Login({ setCurrentView }: LoginProps) {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="bg-[#000] border-[#222] text-white focus:border-[#00FFFF]"
                 placeholder="•••••••••"
+                required
               />
             </div>
           )}
@@ -177,7 +235,7 @@ export default function Login({ setCurrentView }: LoginProps) {
             <>
               {t('login.no_account')}{' '}
               <button
-                onClick={() => setIsLogin(false)}
+                onClick={() => { setIsLogin(false); setError(''); }}
                 className="text-[#00FFFF] hover:underline font-bold"
               >
                 {t('login.signup')}
@@ -187,7 +245,7 @@ export default function Login({ setCurrentView }: LoginProps) {
             <>
               {t('login.have_account')}{' '}
               <button
-                onClick={() => setIsLogin(true)}
+                onClick={() => { setIsLogin(true); setError(''); }}
                 className="text-[#00FFFF] hover:underline font-bold"
               >
                 {t('login.signin')}

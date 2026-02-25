@@ -4,11 +4,12 @@ import { db } from '@/lib/db';
 // GET /api/resumes/[id] - Get a single resume
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const resume = await db.resume.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!resume) {
@@ -39,9 +40,10 @@ export async function GET(
 // PUT /api/resumes/[id] - Update a resume
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const {
       title,
@@ -61,7 +63,7 @@ export async function PUT(
     } = body;
 
     const resume = await db.resume.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(title !== undefined && { title }),
         ...(folder !== undefined && { folder }),
@@ -101,11 +103,12 @@ export async function PUT(
 // DELETE /api/resumes/[id] - Delete a resume
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await db.resume.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
